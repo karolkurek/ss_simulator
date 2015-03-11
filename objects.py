@@ -54,12 +54,36 @@ class Object:
 
     def check_switch_state(self):
         '''funkcja ustalajaca wyświetlany stan łacznika'''
+        '''zamknięty tylko jesli wszystkie fazy zamknięte''' 
         state = 1 #styki zamknięte
         for contacts_state in self.switch.contacts_state:
             if contacts_state == 0:
                 state = 0
                 break
         return state
+
+    def draw_contacts_state(self, qp, size):
+        '''funkcja rysuje przedstawienie graficzne stanu styków łącznika'''
+
+        color_closed = QtGui.QColor(255,10,10)
+        color_closed.setAlpha(70)
+        color_opened = QtGui.QColor(110,255,110)
+        color_opened.setAlpha(70)
+
+        #wysokosc i szerokosc 
+        width = size/3
+        height = size
+        x=0
+        y=0
+
+        for phase in self.switch.contacts_state:
+            if phase:
+                qp.setBrush(color_closed)
+            else:
+                qp.setBrush(color_opened)
+            qp.drawRect(x, 0, width, height)
+            x=x+width
+            print(y)
 
     def init_draw(self):
         if self.type == 'bus':
@@ -201,19 +225,22 @@ class Object:
                     qp.translate(-((self.x-1)*size), -((self.y-1)*size))
         elif self.type == 'circuit_breaker':
             def draw(qp, size):
-                if self.switch.failure:
-                    color = QtCore.Qt.red
-                else:
-                    color = QtCore.Qt.black
-
-                pen = QtGui.QPen(color, LINE_WIDTH, QtCore.Qt.SolidLine)
-                qp.setPen(pen)
-
                 if self.connected_to & 0b0101:
                     qp.translate((self.x)*size, (self.y-1)*size)
                     qp.rotate(90)
                 else:
                     qp.translate((self.x-1)*size, (self.y-1)*size)
+
+                pen = QtGui.QPen(QtCore.Qt.black, 0, QtCore.Qt.NoPen)
+                qp.setPen(pen)
+                self.draw_contacts_state(qp, size)
+
+                if self.switch.failure:
+                    color = QtCore.Qt.red
+                else:
+                    color = QtCore.Qt.black
+                pen = QtGui.QPen(color, LINE_WIDTH, QtCore.Qt.SolidLine)
+                qp.setPen(pen)
 
                 if self.check_switch_state():
                     qp.drawLine((size/2), 0, (size/2), size)
@@ -233,14 +260,18 @@ class Object:
                     qp.translate(-((self.x-1)*size), -((self.y-1)*size))
         elif self.type == 'disconnector':
             def draw(qp, size):
-                pen = QtGui.QPen(QtCore.Qt.black, LINE_WIDTH, QtCore.Qt.SolidLine)
-                qp.setPen(pen)
-
                 if self.connected_to & 0b0101:
                     qp.translate((self.x)*size, (self.y-1)*size)
                     qp.rotate(90)
                 else:
                     qp.translate((self.x-1)*size, (self.y-1)*size)
+
+                if self.switch.failure:
+                    color = QtCore.Qt.red
+                else:
+                    color = QtCore.Qt.black
+                pen = QtGui.QPen(color, LINE_WIDTH, QtCore.Qt.SolidLine)
+                qp.setPen(pen)
 
                 #styki zamknięte lub otwarte
                 if self.check_switch_state():
@@ -260,7 +291,11 @@ class Object:
                     qp.translate(-(self.x-1)*size, -(self.y-1)*size)
         elif self.type == 'earthing_switch':
             def draw(qp, size):
-                pen = QtGui.QPen(QtCore.Qt.black, LINE_WIDTH, QtCore.Qt.SolidLine)
+                if self.switch.failure:
+                    color = QtCore.Qt.red
+                else:
+                    color = QtCore.Qt.black
+                pen = QtGui.QPen(color, LINE_WIDTH, QtCore.Qt.SolidLine)
                 qp.setPen(pen)
 
                 if self.connected_to & 0b0001:

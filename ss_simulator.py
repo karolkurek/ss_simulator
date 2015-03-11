@@ -512,10 +512,12 @@ class SwitchAction(QtGui.QMainWindow):
             if status:
                 self.status_tab[i].setChecked(True)
             i=i+1
-        #ustawienie akcji dla LPM
+
         for status in self.status_tab:
             status.clicked.connect(self.set_status)
 
+        #przycisk reset
+        self.ui.reset.clicked.connect(self.reset_failure)
         #ustawienie statnu styków
         self.set_contacts_state()
 
@@ -545,9 +547,12 @@ class SwitchAction(QtGui.QMainWindow):
         self.move((resolution.width() / 2) - (self.frameSize().width() / 2),
                   (resolution.height() / 2) - (self.frameSize().height() / 2))
 
+    def reset_failure(self):
+        self.obj.switch.failure = False
+        self.owner.update()
+
     def set_trip(self):
         self.obj.switch.trip(self.sender().value, self.sender().closure)
-        print(self.sender().value)
         self.set_contacts_state()
         self.owner.update()
 
