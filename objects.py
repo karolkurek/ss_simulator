@@ -7,7 +7,7 @@ LINE_WIDTH = 2
 LINE_BOLD_WIDTH = 4
 
 class Tile:
-
+    '''Klasa reprezentująca kafelek tablicy'''
 
     def __init__(self, x, y):
         self.x = x
@@ -34,6 +34,7 @@ class Tile:
                         5, 5)
 
 class Object:
+    '''Klasa reprezentująca obiekt w rozdzielni'''
 
     def __init__(self, x, y, type, id = None, connected_to = 0b0010, switch = None, measurement = None):
         self.id = id
@@ -196,7 +197,7 @@ class Object:
                 elif self.connected_to & 0b1000:
                     qp.rotate(-180)
                     qp.translate(-((self.x)*size), -((self.y)*size))
-                elseshare:
+                else:
                     qp.translate(-((self.x-1)*size), -((self.y-1)*size))
         elif self.type == 'circuit_breaker':
             def draw(qp, size):
@@ -366,24 +367,47 @@ class Switch:
     
     def trip(self, phase_list = [1, 1, 1], closure=0):
         '''Wyłączenie 3f lub pofazowo, phase = [l1, l2, l3]'''
+        changes = False
+        i=0
         for phase, status, contacts_state in zip(phase_list, self.status, self.contacts_state):
             if phase and status:
-                index = self.contacts_state.index(contacts_state)
-		#jesli operacja na zamkniecie styków
-		if closure:
-		    self.contacts_state[index] = 1
-		#jesli operacja na otwarcie
-		else:
-		    self.contacts_state[index] = 0
+                changes = True
+                #jesli operacja na zamkniecie styków
+                if closure:
+                    self.contacts_state[i] = 1
+                #jesli operacja na otwarcie
+                else:
+                    self.contacts_state[i] = 0
             elif phase and not status:
                 self.failure = True
+            i=i+1
 
-        record = [contacts_state for contacts_state in self.contacts_state]
-        record.append(self.owner.id)
-        #zapisz stan łącznika w bazie
+        if changes:
+            record = [contacts_state for contacts_state in self.contacts_state]
+            record.append(self.owner.id)
+            #zapisz stan łącznika w bazie
+            conn = sqlite3.connect(DB)
+            c = conn.cursor()
+            c.execute('UPDATE Objects SET contacts_state_l1=?, contacts_state_l2=?, contacts_state_l3=? WHERE id=?', record)
+            conn.commit()
+            conn.close()
+
+    def set_status(self, phase):
+        '''ustawienie statusu łącznika, sprawny, niesprawny'''
+        
+        if self.status[phase] == 1:
+            new_state = 0
+        else:
+            new_state = 1
+
+        #ustawienie nowego statusu w aplikacji i bazie danych
+        self.status[phase] = new_state
+
         conn = sqlite3.connect(DB)
         c = conn.cursor()
-        c.execute('UPDATE Objects SET contacts_state_l1=?, contacts_state_l2=?, contacts_state_l3=? WHERE id=?', record)
+        record = [status for status in self.status]
+        record.append(self.owner.id)
+        c.execute('UPDATE Objects SET status_l1=?, status_l2=?, status_l3=? WHERE id=?', record)
         conn.commit()
         conn.close()
 

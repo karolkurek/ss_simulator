@@ -9,6 +9,7 @@ from objects import Object, Tile, Switch, MeasuringInstrument
 from ui_main_window import Ui_subStationSim
 from ui_open_layout import Ui_openLayout
 from ui_object_properties import Ui_ObjectProperties
+from ui_switch_action import Ui_SwitchAction
 
 DB = 'data.db'
 
@@ -53,7 +54,8 @@ class StartQt4(QtGui.QMainWindow):
         return layout_list
 
     def delete_layout(self):
-        if self.ui.layout_list.selectedItems():
+    	
+    	if self.ui.layout_list.selectedItems():
             layout_name = unicode(self.ui.layout_list.selectedItems()[0].text())
             msg = u'Czy napewno usunąć układ stacji ' + layout_name + ' ?'
             reply = QtGui.QMessageBox.question(self, u'Usunięcie układu',
@@ -304,7 +306,6 @@ class EditLayout(Layout):
             self.show()
 
     def add_object(self, new_obj):
-
         conn = sqlite3.connect(DB)
         c = conn.cursor()
 
@@ -386,6 +387,7 @@ class EditLayout(Layout):
                             for object in objects_list:
                                 self.add_object(object)
                                 self.board[x][y].changed = False
+        self.frame.update()
 
     def help_dialog(self):
         if self.sender().value == 0:
@@ -483,6 +485,90 @@ class ObjectProperties(QtGui.QMainWindow):
         self.move((resolution.width() / 2) - (self.frameSize().width() / 2),
                   (resolution.height() / 2) - (self.frameSize().height() / 2))
 
+class SwitchAction(QtGui.QMainWindow):
+    '''Okno dialogowe pozwalające na manipulację łącznikami'''
+
+    def __init__(self, obj, owner):
+        super(SwitchAction, self).__init__()
+        self.owner = owner
+        self.obj = obj
+        self.initUi()
+
+    def initUi(self):
+        self.ui = Ui_SwitchAction()
+        self.ui.setupUi(self)
+        self.setWindowTitle(u'Łącznik ' + unicode(self.obj.id))
+
+        self.status_tab = [self.ui.status_l1, self.ui.status_l2, self.ui.status_l3]
+        self.frame_tab = [self.ui.contacts_state_l1_frame, self.ui.contacts_state_l2_frame, self.ui.contacts_state_l3_frame]
+        self.open_tab= [self.ui.open_l1, self.ui.open_l2, self.ui.open_l3, self.ui.open]
+        self.close_tab = [self.ui.close_l1, self.ui.close_l2, self.ui.close_l3, self.ui.close]
+        #ustawienie przycisków statusu
+        self.ui.status_l1.value = 0
+        self.ui.status_l2.value = 1
+        self.ui.status_l3.value = 2
+        i=0
+        for status in self.obj.switch.status:
+            if status:
+                self.status_tab[i].setChecked(True)
+            i=i+1
+        #ustawienie akcji dla LPM
+        for status in self.status_tab:
+            status.clicked.connect(self.set_status)
+
+        #ustawienie statnu styków
+        self.set_contacts_state()
+
+        #ustawienie przyciskow trip
+        self.ui.open_l1.value = [1, 0, 0]
+        self.ui.close_l1.value = [1, 0, 0]
+        self.ui.open_l2.value = [0, 1, 0]
+        self.ui.close_l2.value = [0, 1, 0]
+        self.ui.open_l3.value = [0, 0, 1]
+        self.ui.close_l3.value = [0, 0, 1]
+        self.ui.open.value = [1, 1, 1]
+        self.ui.close.value = [1, 1, 1]
+        #ustawienie działania otwarcie/zamknięcie
+        for open in self.open_tab:
+            open.closure = 0
+        for close in self.close_tab:
+            close.closure = 1
+        for trip in self.open_tab+self.close_tab:
+            trip.clicked.connect(self.set_trip)
+
+        self.center_on_screen()
+        self.show()
+
+    def center_on_screen(self):
+        '''Ustawia okno dialogowe po środku ekranu'''
+        resolution = QtGui.QDesktopWidget().screenGeometry()
+        self.move((resolution.width() / 2) - (self.frameSize().width() / 2),
+                  (resolution.height() / 2) - (self.frameSize().height() / 2))
+
+    def set_trip(self):
+        self.obj.switch.trip(self.sender().value, self.sender().closure)
+        print(self.sender().value)
+        self.set_contacts_state()
+        self.owner.update()
+
+    def set_contacts_state(self):
+        def color(state):
+            red = '#FF7070'
+            green = '#70FF70'
+            if state:
+                return red
+            else:
+                return green 
+        i=0
+        for frame in self.frame_tab:
+            #frame.setStyleSheet("background-color: %s;" % color(self.obj.switch.status[i]))
+            frame.setStyleSheet("background-color: %s;" % color(self.obj.switch.contacts_state[i]))
+            frame.update()
+            i=i+1
+
+    def set_status(self):
+       self.obj.switch.set_status(self.sender().value) 
+
 class Board(QtGui.QFrame):
     WIDTH = 40
     HEIGHT = 20
@@ -512,26 +598,7 @@ class Board(QtGui.QFrame):
 
         if clicked_object:
             if clicked_object.switch:
-		q = QtGui.QMessageBox(QtGui.QMessageBox.Question, u'Wybi', u'Istnieją niezapisane zmiany, co chcesz zrobić?')
-		exit = QtGui.QPushButton()
-		exit.setText(u'Anuluj')
-		exit.setIcon(QtGui.QIcon('icons/exit.png'))
-		q.addButton(exit, QtGui.QMessageBox.RejectRole)
-
-		save = QtGui.QPushButton()
-		save.setText('Zapisz')
-		save.setIcon(QtGui.QIcon('icons/save.png'))
-		save.clicked.connect(self.save_changes)
-		q.addButton(save, QtGui.QMessageBox.YesRole)
-
-		exit = QtGui.QPushButton()
-		exit.setText(u'Wyjście')
-		exit.setIcon(QtGui.QIcon('icons/exit.png'))
-		exit.clicked.connect(self.close)
-		q.addButton(exit, QtGui.QMessageBox.NoRole)
-		q.exec_()
-                clicked_object.switch.trip()
-                self.update()
+                self.switch_action_window = SwitchAction(clicked_object, self)
 
     def paintEvent(self, e):
         qp = QtGui.QPainter()
