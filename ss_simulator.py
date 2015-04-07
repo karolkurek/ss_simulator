@@ -337,7 +337,7 @@ class EditLayout(Layout):
     def update_object(self, obj):
         conn = sqlite3.connect(DB)
         c = conn.cursor()
-        record = [obj.x, obj.y, obj.type, self.layout_name, obj.connected_to, obj.id]
+        record = [obj.x, obj.y, obj.type, self.layout_name, obj.connected_to]
         if obj.type in self.switch_list:
             record = record +[status for status in obj.switch.status] + [contacts_state for contacts_state in obj.switch.contacts_state]+[obj.id,]
             c.execute("UPDATE objects SET x=?, y=?, type=?, layout_name=?, connected_to=?, status_l1=?, status_l2=?, status_l3=?,\
@@ -347,6 +347,7 @@ class EditLayout(Layout):
             c.execute("UPDATE objects SET x=?, y=?, type=?, layout_name=?, connected_to=?, status_l1=?, status_l2=?, status_l3=?,\
                        measurement_l1=?,measurement_l2=?, measurement_l3=? WHERE id=?" , record)
         else:
+            record = record + [obj.id,]
             c.execute("UPDATE objects SET x=?, y=?, type=?, layout_name=?, connected_to=? WHERE id=?" , record)
         conn.commit()
         conn.close()

@@ -83,7 +83,6 @@ class Object:
                 qp.setBrush(color_opened)
             qp.drawRect(x, 0, width, height)
             x=x+width
-            print(y)
 
     def init_draw(self):
         if self.type == 'bus':
@@ -266,6 +265,10 @@ class Object:
                 else:
                     qp.translate((self.x-1)*size, (self.y-1)*size)
 
+                pen = QtGui.QPen(QtCore.Qt.black, 0, QtCore.Qt.NoPen)
+                qp.setPen(pen)
+                self.draw_contacts_state(qp, size)
+
                 if self.switch.failure:
                     color = QtCore.Qt.red
                 else:
@@ -291,12 +294,6 @@ class Object:
                     qp.translate(-(self.x-1)*size, -(self.y-1)*size)
         elif self.type == 'earthing_switch':
             def draw(qp, size):
-                if self.switch.failure:
-                    color = QtCore.Qt.red
-                else:
-                    color = QtCore.Qt.black
-                pen = QtGui.QPen(color, LINE_WIDTH, QtCore.Qt.SolidLine)
-                qp.setPen(pen)
 
                 if self.connected_to & 0b0001:
                     qp.translate((self.x)*size, (self.y-1)*size)
@@ -309,6 +306,17 @@ class Object:
                     qp.rotate(180)
                 else:
                     qp.translate((self.x-1)*size, (self.y-1)*size)
+
+                pen = QtGui.QPen(QtCore.Qt.black, 0, QtCore.Qt.NoPen)
+                qp.setPen(pen)
+                self.draw_contacts_state(qp, size)
+
+                if self.switch.failure:
+                    color = QtCore.Qt.red
+                else:
+                    color = QtCore.Qt.black
+                pen = QtGui.QPen(color, LINE_WIDTH, QtCore.Qt.SolidLine)
+                qp.setPen(pen)
 
                 #styki zamknięte lub otwarte
                 if self.check_switch_state():
